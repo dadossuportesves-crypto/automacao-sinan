@@ -852,7 +852,19 @@ opcao_agravo = st.sidebar.selectbox(
 
 )
 
-anos = sorted(int(a) for a in base["ANO_EPI"].dropna().unique())
+# Garante ANO_EPI mesmo se nao veio no parquet
+if "ANO_EPI" not in base.columns and "DT_NOTIFIC" in base.columns:
+    base["DT_NOTIFIC"] = pd.to_datetime(base["DT_NOTIFIC"], errors="coerce")
+    iso = base["DT_NOTIFIC"].dt.isocalendar()
+    base["ANO_EPI"]    = iso.year
+    base["SEMANA_EPI"] = iso.week
+    base["MES"]        = base["DT_NOTIFIC"].dt.month
+
+if "ANO_EPI" in base.columns and not base["ANO_EPI"].dropna().empty:
+    anos = sorted(int(a) for a in base["ANO_EPI"].dropna().unique())
+else:
+    from CONFIG_00 import ANO_EPIDEMIOLOGICO
+    anos = [ANO_EPIDEMIOLOGICO]
 
 ano = st.sidebar.selectbox(
 
