@@ -40,11 +40,26 @@ PASTA_RAIZ = PASTA_DASHBOARD.parent
 
 PASTA_ASSETS = PASTA_DASHBOARD / "assets"
 
+PASTA_DADOS = PASTA_DASHBOARD / "data"
+
+# =========================================================
+# DETECCAO DE AMBIENTE (Cloud vs Local)
+# =========================================================
+
+_CLOUD = Path("/mount/src").exists()
+
+# =========================================================
+# CONFIGURAR sys.path
+# =========================================================
+
 PASTA_SCRIPTS = PASTA_RAIZ / "SCRIPTS_PYTHON"
 
-if str(PASTA_SCRIPTS) not in sys.path:
-
-    sys.path.insert(0, str(PASTA_SCRIPTS))
+for _p in [
+    PASTA_SCRIPTS,
+    Path("/mount/src/automacao-sinan/SCRIPTS_PYTHON"),
+]:
+    if _p.exists() and str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 # =========================================================
 # MODULOS CENTRAIS DO PROJETO
@@ -74,52 +89,14 @@ from FUNCOES_GERAIS import (
 
 )
 
-# =========================================================
-# DETECCAO DE AMBIENTE (Cloud vs Local)
-# =========================================================
-
-_CLOUD = Path("/mount/src").exists()
-
-def _carregar_dados_cloud(agravo):
-
-    # No Streamlit Cloud, le o Excel pre-processado do repositorio
-    import pandas as pd
-
-    arquivo = Path(__file__).parent / "data" / "DADOS_DASHBOARD.xlsx"
-
-    if not arquivo.exists():
+# FUNCOES_SHAPEFILE usa geopandas — opcional no Cloud
+try:
+    from FUNCOES_SHAPEFILE import ler_shapefile_distritos
+    _TEM_SHAPEFILE = True
+except Exception:
+    _TEM_SHAPEFILE = False
+    def ler_shapefile_distritos(*args, **kwargs):
         return None
-
-    try:
-        sufixo = "DEN" if agravo == "DENGUE" else "CHK"
-
-        por_se       = pd.read_excel(arquivo, sheet_name=f"SE_{sufixo}")
-        por_distrito = pd.read_excel(arquivo, sheet_name=f"DISTRITO_{sufixo}")
-        por_sexo     = pd.read_excel(arquivo, sheet_name=f"SEXO_{sufixo}")
-        por_classif  = pd.read_excel(arquivo, sheet_name=f"CLASSIF_{sufixo}")
-        por_faixa    = pd.read_excel(arquivo, sheet_name=f"FAIXA_{sufixo}")
-        resumo       = pd.read_excel(arquivo, sheet_name="RESUMO")
-
-        resumo_agravo = resumo[resumo["agravo"] == agravo].iloc[0] if len(resumo) > 0 else {}
-
-        return {
-            "total":         int(resumo_agravo.get("total_notificacoes", 0)),
-            "confirmados":   int(resumo_agravo.get("total_confirmados", 0)),
-            "atualizacao":   str(resumo_agravo.get("data_atualizacao", "")),
-            "por_se":        por_se,
-            "por_distrito":  por_distrito,
-            "por_sexo":      por_sexo,
-            "por_classif":   por_classif,
-            "por_faixa":     por_faixa,
-        }
-    except Exception as e:
-        return None
-
-from FUNCOES_SHAPEFILE import (
-
-    ler_shapefile_distritos
-
-)
 
 # =========================================================
 # PALETA AMARELO - VERDE - AZUL
@@ -417,20 +394,23 @@ def faixa_etaria(anos):
 @st.cache_data(show_spinner="Lendo e preparando as bases...")
 def carregar_base():
 
-    # No Streamlit Cloud, le o parquet pre-processado do repositorio
+    # ---- STREAMLIT CLOUD: le parquet pre-processado ----
     if _CLOUD:
-        parquet = Path(__file__).parent / "data" / "BASE_DASHBOARD.parquet"
+        parquet = PASTA_DADOS / "BASE_DASHBOARD.parquet"
         if parquet.exists():
             try:
-                return pd.read_parquet(parquet)
-            except Exception:
-                pass
+                df = pd.read_parquet(parquet)
+                if not df.empty:
+                    return df
+            except Exception as e:
+                st.warning(f"Erro ao ler parquet: {e}")
         st.error(
-            "Dados nao disponiveis no servidor. "
-            "Execute 24_EXPORTAR_GITHUB.py localmente para atualizar."
+            "⚠️ Dados não disponíveis. "
+            "Execute 24_EXPORTAR_GITHUB.py localmente e faça push para atualizar."
         )
         return pd.DataFrame()
 
+    # ---- LOCAL: le DBF e prepara base ----
     # Mapa codigo do distrito -> chave normalizada (aba DISTRITOS).
 
     mapa_dist = pd.read_excel(
