@@ -532,6 +532,9 @@ def carregar_base():
 @st.cache_data(show_spinner=False)
 def carregar_populacao_municipio():
 
+    if _CLOUD or not ARQUIVO_DICIONARIO.exists():
+        return {}
+
     df = pd.read_excel(ARQUIVO_DICIONARIO, sheet_name="POPULACAO_MUNICIPIO")
 
     df["ANO"] = pd.to_numeric(df["ANO"], errors="coerce")
@@ -544,13 +547,14 @@ def carregar_populacao_municipio():
 @st.cache_data(show_spinner=False)
 def carregar_populacao_distrito():
 
+    if _CLOUD or not ARQUIVO_DICIONARIO.exists():
+        return {}, 2026
+
     df = pd.read_excel(ARQUIVO_DICIONARIO, sheet_name="POPULACAO_DISTRITO")
 
     df["ANO"] = pd.to_numeric(df["ANO"], errors="coerce")
 
     df["POPULACAO"] = pd.to_numeric(df["POPULACAO"], errors="coerce")
-
-    # Usa o ano mais recente disponivel.
 
     ano_ref = int(df["ANO"].max())
 
@@ -567,6 +571,9 @@ def carregar_populacao_distrito():
 
 @st.cache_data(show_spinner=False)
 def carregar_geojson_distritos():
+
+    if _CLOUD or not _TEM_SHAPEFILE:
+        return {"type": "FeatureCollection", "features": []}
 
     gdf = ler_shapefile_distritos()
 
