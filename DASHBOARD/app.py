@@ -42,13 +42,9 @@ PASTA_ASSETS = PASTA_DASHBOARD / "assets"
 
 PASTA_SCRIPTS = PASTA_RAIZ / "SCRIPTS_PYTHON"
 
-# Garante que SCRIPTS_PYTHON esta no path (local e Streamlit Cloud)
-for _p in [
-    PASTA_SCRIPTS,
-    Path("/mount/src/automacao-sinan/SCRIPTS_PYTHON"),
-]:
-    if _p.exists() and str(_p) not in sys.path:
-        sys.path.insert(0, str(_p))
+if str(PASTA_SCRIPTS) not in sys.path:
+
+    sys.path.insert(0, str(PASTA_SCRIPTS))
 
 # =========================================================
 # MODULOS CENTRAIS DO PROJETO
@@ -77,6 +73,47 @@ from FUNCOES_GERAIS import (
     preparar_base
 
 )
+
+# =========================================================
+# DETECCAO DE AMBIENTE (Cloud vs Local)
+# =========================================================
+
+_CLOUD = Path("/mount/src").exists()
+
+def _carregar_dados_cloud(agravo):
+
+    # No Streamlit Cloud, le o Excel pre-processado do repositorio
+    import pandas as pd
+
+    arquivo = Path(__file__).parent / "data" / "DADOS_DASHBOARD.xlsx"
+
+    if not arquivo.exists():
+        return None
+
+    try:
+        sufixo = "DEN" if agravo == "DENGUE" else "CHK"
+
+        por_se       = pd.read_excel(arquivo, sheet_name=f"SE_{sufixo}")
+        por_distrito = pd.read_excel(arquivo, sheet_name=f"DISTRITO_{sufixo}")
+        por_sexo     = pd.read_excel(arquivo, sheet_name=f"SEXO_{sufixo}")
+        por_classif  = pd.read_excel(arquivo, sheet_name=f"CLASSIF_{sufixo}")
+        por_faixa    = pd.read_excel(arquivo, sheet_name=f"FAIXA_{sufixo}")
+        resumo       = pd.read_excel(arquivo, sheet_name="RESUMO")
+
+        resumo_agravo = resumo[resumo["agravo"] == agravo].iloc[0] if len(resumo) > 0 else {}
+
+        return {
+            "total":         int(resumo_agravo.get("total_notificacoes", 0)),
+            "confirmados":   int(resumo_agravo.get("total_confirmados", 0)),
+            "atualizacao":   str(resumo_agravo.get("data_atualizacao", "")),
+            "por_se":        por_se,
+            "por_distrito":  por_distrito,
+            "por_sexo":      por_sexo,
+            "por_classif":   por_classif,
+            "por_faixa":     por_faixa,
+        }
+    except Exception as e:
+        return None
 
 from FUNCOES_SHAPEFILE import (
 
@@ -379,6 +416,20 @@ def faixa_etaria(anos):
 
 @st.cache_data(show_spinner="Lendo e preparando as bases...")
 def carregar_base():
+
+    # No Streamlit Cloud, le o parquet pre-processado do repositorio
+    if _CLOUD:
+        parquet = Path(__file__).parent / "data" / "BASE_DASHBOARD.parquet"
+        if parquet.exists():
+            try:
+                return pd.read_parquet(parquet)
+            except Exception:
+                pass
+        st.error(
+            "Dados nao disponiveis no servidor. "
+            "Execute 24_EXPORTAR_GITHUB.py localmente para atualizar."
+        )
+        return pd.DataFrame()
 
     # Mapa codigo do distrito -> chave normalizada (aba DISTRITOS).
 
