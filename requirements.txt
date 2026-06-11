@@ -1,0 +1,12 @@
+pandas
+dbfread
+openpyxl
+selenium
+streamlit
+plotly
+geopandas
+folium
+streamlit-folium
+streamlit-authenticator
+bcrypt
+PyYAML

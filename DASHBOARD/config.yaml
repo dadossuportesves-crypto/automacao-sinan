@@ -1,0 +1,11 @@
+credentials:
+  usernames:
+    klaubert:
+      email: dadossuporte.sves@gmail.com
+      name: Klaubert
+      password: "$2b$12$KfrByyTiLw5bkJb23Z/3MO74OopWWE1LBOwriNKbO54LhkAG.9e6i"
+
+cookie:
+  expiry_days: 1
+  key: semus_sinan_2026_chave_secreta_ok
+  name: semus_auth_cookie
