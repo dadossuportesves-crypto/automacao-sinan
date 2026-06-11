@@ -65,9 +65,13 @@ from FUNCOES_GERAIS import ler_dbf, preparar_base
 COLUNAS_PERMITIDAS = [
     # Identificacao anonima
     "AGRAVO",
-    # Datas (sem identificacao)
+    # Datas e variaveis temporais (sem identificacao)
     "DT_NOTIFIC", "DT_ENCERRA", "DT_SIN_PRI",
-    "SEM_NOT", "NU_ANO",
+    "SEM_NOT", "NU_ANO", "ANO_EPI", "SEMANA_EPI", "MES",
+    # Demografico derivado
+    "IDADE_ANOS", "FAIXA_ETARIA",
+    # Geografico derivado
+    "DISTRITO", "OBITO_AGRAVO",
     # Classificacao
     "CLASSI_FIN", "DESC_CLASSI_FIN",
     "CRITERIO", "DESC_CRITERIO",
@@ -117,6 +121,54 @@ def processar_agravo(agravo):
         return None
 
     df["AGRAVO"] = agravo
+
+    # Calcular colunas temporais derivadas
+    if "DT_NOTIFIC" in df.columns:
+        df["DT_NOTIFIC"] = pd.to_datetime(df["DT_NOTIFIC"], errors="coerce")
+        iso = df["DT_NOTIFIC"].dt.isocalendar()
+        df["ANO_EPI"]    = iso.year.astype("Int64")
+        df["SEMANA_EPI"] = iso.week.astype("Int64")
+        df["MES"]        = df["DT_NOTIFIC"].dt.month.astype("Int64")
+
+    # Calcular faixa etaria
+    if "NU_IDADE_N" in df.columns:
+
+        def _idade_em_anos(v):
+            try:
+                v = int(v)
+                tp = v // 1000
+                vl = v % 1000
+                if tp == 4: return vl
+                if tp == 3: return 0
+                return 0
+            except Exception:
+                return None
+
+        ORDEM_FAIXAS = [
+            "< 1 ano","1-4","5-9","10-14","15-19","20-29",
+            "30-39","40-49","50-59","60-69","70-79","80+"
+        ]
+
+        def _faixa_etaria(anos):
+            try:
+                a = int(anos)
+                if a < 1:   return "< 1 ano"
+                if a <= 4:  return "1-4"
+                if a <= 9:  return "5-9"
+                if a <= 14: return "10-14"
+                if a <= 19: return "15-19"
+                if a <= 29: return "20-29"
+                if a <= 39: return "30-39"
+                if a <= 49: return "40-49"
+                if a <= 59: return "50-59"
+                if a <= 69: return "60-69"
+                if a <= 79: return "70-79"
+                return "80+"
+            except Exception:
+                return None
+
+        df["IDADE_ANOS"]   = df["NU_IDADE_N"].map(_idade_em_anos)
+        df["FAIXA_ETARIA"] = df["IDADE_ANOS"].map(_faixa_etaria)
 
     # Manter apenas colunas permitidas que existem no df
     colunas_ok = [c for c in COLUNAS_PERMITIDAS if c in df.columns]
