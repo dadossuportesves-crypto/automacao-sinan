@@ -1037,15 +1037,20 @@ else:
 
 mostrar_breakdown = opcao_agravo not in AGRAVOS_ARBOVIROSES
 
-status = df.get("STATUS_MS", pd.Series(dtype=str))
+# Garantir STATUS_MS e CRITERIO com index correto
+if "STATUS_MS" in df.columns:
+    status = df["STATUS_MS"]
+elif "DESC_CLASSI_FIN" in df.columns:
+    status = df["DESC_CLASSI_FIN"]
+else:
+    status = pd.Series("", index=df.index, dtype=str)
 
-criterio = (
-
-    df.get("CRITERIO", pd.Series(index=df.index, dtype=str))
-    .astype(str)
-    .str.strip()
-
-)
+if "CRITERIO" in df.columns:
+    criterio = df["CRITERIO"].astype(str).str.strip()
+elif "DESC_CRITERIO" in df.columns:
+    criterio = df["DESC_CRITERIO"].astype(str).str.strip()
+else:
+    criterio = pd.Series("", index=df.index, dtype=str)
 
 # Mascaras de classificacao.
 #

@@ -76,6 +76,7 @@ COLUNAS_PERMITIDAS = [
     "CLASSI_FIN", "DESC_CLASSI_FIN",
     "CRITERIO", "DESC_CRITERIO",
     "EVOLUCAO", "DESC_EVOLUCAO",
+    "STATUS_MS",
     # Demografico agregado (sem nome, CPF, endereco)
     "CS_SEXO", "DESC_CS_SEXO",
     "NU_IDADE_N",
