@@ -1307,12 +1307,17 @@ def agregar_distritos(quadro, chaves):
 
         )
 
-        confirmados = (
-
-            com_dist[
+        if "STATUS_MS" in com_dist.columns:
+            mask_conf_dist = (
                 (com_dist["STATUS_MS"] == STATUS_CONFIRMADO)
                 & crit_dist.isin(["1", "2"])
-            ]
+            )
+        else:
+            mask_conf_dist = pd.Series(False, index=com_dist.index)
+
+        confirmados = (
+
+            com_dist[mask_conf_dist]
             .groupby("DISTRITO").size()
             .reindex(chaves, fill_value=0)
 
