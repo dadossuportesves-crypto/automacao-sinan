@@ -866,6 +866,47 @@ else:
     from CONFIG_00 import ANO_EPIDEMIOLOGICO
     anos = [ANO_EPIDEMIOLOGICO]
 
+# Garantir colunas derivadas que podem nao estar no parquet
+if "DISTRITO" not in base.columns:
+    if "DESC_ID_DISTRIT" in base.columns:
+        base["DISTRITO"] = base["DESC_ID_DISTRIT"]
+    else:
+        base["DISTRITO"] = "NAO INFORMADO"
+
+if "FAIXA_ETARIA" not in base.columns and "NU_IDADE_N" in base.columns:
+    def _faixa(v):
+        try:
+            v = int(v); tp = v // 1000; vl = v % 1000
+            anos_v = vl if tp == 4 else 0
+            if anos_v < 1:   return "< 1 ano"
+            if anos_v <= 4:  return "1-4"
+            if anos_v <= 9:  return "5-9"
+            if anos_v <= 14: return "10-14"
+            if anos_v <= 19: return "15-19"
+            if anos_v <= 29: return "20-29"
+            if anos_v <= 39: return "30-39"
+            if anos_v <= 49: return "40-49"
+            if anos_v <= 59: return "50-59"
+            if anos_v <= 69: return "60-69"
+            if anos_v <= 79: return "70-79"
+            return "80+"
+        except Exception:
+            return None
+    base["FAIXA_ETARIA"] = base["NU_IDADE_N"].map(_faixa)
+
+if "OBITO_AGRAVO" not in base.columns:
+    if "DESC_EVOLUCAO" in base.columns:
+        base["OBITO_AGRAVO"] = base["DESC_EVOLUCAO"].str.upper().str.contains("OBITO|ÓBITO", na=False)
+    else:
+        base["OBITO_AGRAVO"] = False
+
+if "SEMANA_EPI" not in base.columns and "DT_NOTIFIC" in base.columns:
+    iso = pd.to_datetime(base["DT_NOTIFIC"], errors="coerce").dt.isocalendar()
+    base["SEMANA_EPI"] = iso.week
+
+if "MES" not in base.columns and "DT_NOTIFIC" in base.columns:
+    base["MES"] = pd.to_datetime(base["DT_NOTIFIC"], errors="coerce").dt.month
+
 ano = st.sidebar.selectbox(
 
     "Ano epidemiologico",
